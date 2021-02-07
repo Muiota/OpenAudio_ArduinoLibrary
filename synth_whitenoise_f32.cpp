@@ -1,6 +1,7 @@
 /*
 	Extended to F32
 	Created: Chip Audette, OpenAudio, Feb 2017
+	Extended to Teensy 4.x Bob larkn June 2020
 	
 	License: MIT License.  Use at your own risk.
 */
@@ -32,7 +33,6 @@
  */
 
 #include "synth_whitenoise_f32.h"
-#include "input_i2s_f32.h" //for the audio_convert_i16_to_f32 routine
 
 // Park-Miller-Carta Pseudo-Random Number Generator
 // http://www.firstpr.com.au/dsp/rand31/
@@ -63,7 +63,7 @@ void AudioSynthNoiseWhite_F32::update(void)
 	
 	lo = seed;
 	do {
-#if defined(KINETISK)
+#if ( defined(KINETISK) ||  defined(__IMXRT1062__) )
 		hi = multiply_16bx16t(16807, lo); // 16807 * (lo >> 16)
 		lo = 16807 * (lo & 0xFFFF);
 		lo += (hi & 0x7FFF) << 16;
@@ -110,9 +110,11 @@ void AudioSynthNoiseWhite_F32::update(void)
 #endif
 	} while (p < end);
 	seed = lo;
-	
+
 	//convert int16 to f32
-	AudioInputI2S_F32::convert_i16_to_f32(block->data,block_f32->data,block_f32->length);
+    #define I16_TO_F32_NORM_FACTOR (3.051757812500000E-05)  //which is 1/32768 
+	for (int i=0; i<block_f32->length; i++)
+		 block_f32->data[i] = (float32_t)block->data[i] * I16_TO_F32_NORM_FACTOR;
 	
 	AudioStream_F32::transmit(block_f32);
 	AudioStream_F32::release(block_f32);
